@@ -5,9 +5,11 @@ export type Track = {
   album: string;
   duration: number;
   cover: string;
-  source: "demo" | "imported" | "provider";
+  source: "imported" | "provider" | "r2";
   audioUrl?: string;
   audioBlob?: Blob;
+  r2Key?: string;
+  r2Url?: string;
   sourceUrl?: string;
   license?: string;
   favorite?: boolean;
