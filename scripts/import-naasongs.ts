@@ -59,7 +59,7 @@ async function main() {
   try {
     previous = JSON.parse(await readFile("data/naasongs-catalog.json", "utf8")).songs ?? [];
   } catch {}
-  const client = r2Client();
+  const client = dryRun ? null : r2Client();
   const bucket = process.env.R2_BUCKET_NAME;
   if (!dryRun && (!client || !bucket)) throw new Error("R2 credentials are required for live import; use --dry-run or configure .env.local");
   const supabase = !dryRun && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
