@@ -55,7 +55,7 @@ async function main() {
   if (!songs.length) throw new Error("No audio links found");
   console.log(`Found ${songs.length} songs (cap ${limit})`);
   const catalog: Array<NaaSong & { r2Key?: string; sha256?: string; status: string; linkStatus?: number; linkContentType?: string | null }> = [];
-  let previous: Array<{ sourceAudioUrl?: string; sha256?: string }> = [];
+  let previous: Array<{ sourceAudioUrl?: string; sha256?: string; status?: string }> = [];
   try {
     previous = JSON.parse(await readFile("data/naasongs-catalog.json", "utf8")).songs ?? [];
   } catch {}
@@ -72,7 +72,7 @@ async function main() {
       const { bytes, contentType } = await fetchBytes(song.sourceAudioUrl);
       validateAudio(bytes, contentType, song.sourceAudioUrl);
       const digest = sha256(bytes);
-      if (hashes.has(digest) || previous.some((item) => item.sourceAudioUrl === song.sourceAudioUrl || item.sha256 === digest)) { catalog.push({ ...song, sha256: digest, status: "duplicate" }); continue; }
+      if (hashes.has(digest) || previous.some((item) => item.status === "uploaded" && (item.sourceAudioUrl === song.sourceAudioUrl || item.sha256 === digest))) { catalog.push({ ...song, sha256: digest, status: "duplicate" }); continue; }
       hashes.add(digest);
       const key = `${process.env.R2_KEY_PREFIX ?? "naasongs/telugu-folk"}/${song.id}-${basename(new URL(song.sourceAudioUrl).pathname)}`;
       await putWithRetry(client!, new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: contentType ?? "audio/mpeg", Metadata: { sourcepage: song.sourcePageUrl, sourceaudio: song.sourceAudioUrl, attribution: song.attribution } }), song.title);
