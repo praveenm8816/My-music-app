@@ -7,6 +7,7 @@ export type Track = {
   cover: string;
   source: "demo" | "imported" | "provider";
   audioUrl?: string;
+  audioBlob?: Blob;
   sourceUrl?: string;
   license?: string;
   favorite?: boolean;

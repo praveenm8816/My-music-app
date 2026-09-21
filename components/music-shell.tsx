@@ -51,7 +51,7 @@ export default function MusicShell() {
   const favorite = (id: string) => { const next = toggleFavorite(tracks, id); setTracks(next); const track = next.find((t) => t.id === id); if (track) saveTrack(track); };
   const importFiles = (files: FileList | null) => {
     if (!files) return;
-    const imported = Array.from(files).filter((file) => file.type.startsWith("audio/")).map((file) => ({ id: `import-${file.name}-${file.lastModified}`, title: file.name.replace(/\.[^/.]+$/, ""), artist: "Imported track", album: "On this device", duration: 0, cover: "linear-gradient(135deg,#101416,#52615c)", source: "imported" as const, audioUrl: URL.createObjectURL(file), addedAt: Date.now() }));
+    const imported = Array.from(files).filter((file) => file.type.startsWith("audio/")).map((file) => ({ id: `import-${file.name}-${file.lastModified}`, title: file.name.replace(/\.[^/.]+$/, ""), artist: "Imported track", album: "On this device", duration: 0, cover: "linear-gradient(135deg,#101416,#52615c)", source: "imported" as const, audioUrl: URL.createObjectURL(file), audioBlob: file, addedAt: Date.now() }));
     imported.forEach(saveTrack); setTracks((old) => [...old, ...imported]); setView("library");
   };
   const addPlaylist = () => { const clean = playlistName.trim(); if (!clean) return; const next = createPlaylist(clean); savePlaylist(next); setPlaylists((old) => [...old, next]); setPlaylistName(""); };
