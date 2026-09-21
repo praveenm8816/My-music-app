@@ -15,7 +15,23 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function r2Client() {
   if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) return null;
+  if (!/^[a-f0-9]{32}$/i.test(process.env.R2_ACCOUNT_ID)) throw new Error("R2_ACCOUNT_ID must be the 32-character Cloudflare account ID");
   return new S3Client({ region: "auto", endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY } });
+}
+
+async function putWithRetry(client: S3Client, command: PutObjectCommand, label: string) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await client.send(command);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await sleep(1000 * attempt);
+    }
+  }
+  const message = lastError instanceof Error ? lastError.message : "unknown upload error";
+  throw new Error(`R2 upload failed for ${label} after 3 attempts: ${message}`);
 }
 
 async function fetchBytes(url: string) {
@@ -59,7 +75,7 @@ async function main() {
       if (hashes.has(digest) || previous.some((item) => item.sourceAudioUrl === song.sourceAudioUrl || item.sha256 === digest)) { catalog.push({ ...song, sha256: digest, status: "duplicate" }); continue; }
       hashes.add(digest);
       const key = `${process.env.R2_KEY_PREFIX ?? "naasongs/telugu-folk"}/${song.id}-${basename(new URL(song.sourceAudioUrl).pathname)}`;
-      await client!.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: contentType ?? "audio/mpeg", Metadata: { sourcepage: song.sourcePageUrl, sourceaudio: song.sourceAudioUrl, attribution: song.attribution } }));
+      await putWithRetry(client!, new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: contentType ?? "audio/mpeg", Metadata: { sourcepage: song.sourcePageUrl, sourceaudio: song.sourceAudioUrl, attribution: song.attribution } }), song.title);
       catalog.push({ ...song, r2Key: key, sha256: digest, status: "uploaded" });
       const { error } = await supabase!.from("music_catalog").upsert({ id: song.id, title: song.title, artist: song.artist, year: song.year ?? null, source_page_url: song.sourcePageUrl, source_audio_url: song.sourceAudioUrl, attribution: song.attribution, r2_key: key, sha256: digest }, { onConflict: "source_audio_url" });
       if (error) throw error;
@@ -71,7 +87,7 @@ async function main() {
   }
   await mkdir("data", { recursive: true });
   await writeFile("data/naasongs-catalog.json", JSON.stringify({ generatedAt: new Date().toISOString(), sourcePageUrl, songs: catalog }, null, 2));
-  if (client && !dryRun) await client.send(new PutObjectCommand({ Bucket: bucket, Key: `${process.env.R2_KEY_PREFIX ?? "naasongs/telugu-folk"}/catalog.json`, Body: JSON.stringify({ generatedAt: new Date().toISOString(), sourcePageUrl, songs: catalog }), ContentType: "application/json" }));
+  if (client && !dryRun) await putWithRetry(client, new PutObjectCommand({ Bucket: bucket, Key: `${process.env.R2_KEY_PREFIX ?? "naasongs/telugu-folk"}/catalog.json`, Body: JSON.stringify({ generatedAt: new Date().toISOString(), sourcePageUrl, songs: catalog }), ContentType: "application/json" }), "catalog.json");
   console.log(JSON.stringify({ dryRun, songs: catalog.length, uploaded: catalog.filter((song) => song.status === "uploaded").length, catalog: "data/naasongs-catalog.json" }, null, 2));
 }
 
