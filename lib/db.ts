@@ -12,6 +12,7 @@ class PylaDB extends Dexie {
 
 export const db = new PylaDB();
 export const saveTrack = (track: Track) => db.tracks.put({ ...track, addedAt: track.addedAt ?? Date.now() });
+export const deleteTrack = (id: string) => db.tracks.delete(id);
 export const loadTracks = async () => {
   const tracks = await db.tracks.toArray();
   return tracks.map((track) => track.audioBlob
@@ -19,3 +20,4 @@ export const loadTracks = async () => {
     : track);
 };
 export const savePlaylist = (playlist: Playlist) => db.playlists.put(playlist);
+export const deletePlaylist = (id: string) => db.playlists.delete(id);
