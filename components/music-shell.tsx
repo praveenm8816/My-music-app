@@ -5,6 +5,7 @@ import { Download, Heart, Home, Library, ListMusic, MoreHorizontal, Pause, Play,
 import { demoTracks, formatDuration, searchTracks, toggleFavorite, createPlaylist } from "../lib/library";
 import { loadTracks, savePlaylist, saveTrack } from "../lib/db";
 import type { Playlist, Track } from "../lib/types";
+import { searchInternetArchive, type InternetArchiveResult } from "../lib/providers";
 
 type View = "home" | "library" | "search" | "playlists";
 
@@ -17,6 +18,9 @@ export default function MusicShell() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [showInstall, setShowInstall] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
+  const [onlineTracks, setOnlineTracks] = useState<InternetArchiveResult[]>([]);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const filtered = useMemo(() => searchTracks(view === "library" ? tracks.filter((t) => t.source === "imported" || t.favorite) : tracks, query), [tracks, query, view]);
@@ -41,6 +45,11 @@ export default function MusicShell() {
     imported.forEach(saveTrack); setTracks((old) => [...old, ...imported]); setView("library");
   };
   const addPlaylist = () => { const clean = playlistName.trim(); if (!clean) return; const next = createPlaylist(clean); savePlaylist(next); setPlaylists((old) => [...old, next]); setPlaylistName(""); };
+  const searchOnline = async () => {
+    if (!query.trim()) return;
+    setOnlineLoading(true); setOnlineError("");
+    try { setOnlineTracks(await searchInternetArchive(query)); } catch { setOnlineError("Online search is unavailable right now."); } finally { setOnlineLoading(false); }
+  };
 
   return (
     <main className="grain min-h-screen bg-paper pb-36">
@@ -60,7 +69,7 @@ export default function MusicShell() {
           <div className="border-t border-ink/15 pt-5"><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-2xl font-bold tracking-[-0.04em]">Made for tonight</h2><button onClick={() => setView("library")} className="text-sm font-semibold underline underline-offset-4">See library</button></div><TrackRow tracks={tracks.slice(0, 4)} current={current} onPlay={play} onFavorite={favorite} /></div>
         </section>}
         {view === "library" && <section className="rise pt-10"><PageTitle title="Your library" detail={`${tracks.filter((t) => t.source === "imported" || t.favorite).length} saved tracks`} action={<button onClick={() => fileInput.current?.click()} className="flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper"><Upload size={16} /> Import</button>} /><input ref={fileInput} type="file" accept="audio/*" multiple hidden onChange={(e) => importFiles(e.target.files)} /><TrackRow tracks={filtered} current={current} onPlay={play} onFavorite={favorite} empty="Import your first track to start your local library." /></section>}
-        {view === "search" && <section className="rise pt-10"><PageTitle title="Find a feeling" detail="Search your local collection" /><div className="relative mb-8 mt-8"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/45" size={20} /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tracks, artists, albums" className="w-full rounded-2xl border border-ink/15 bg-white/60 py-4 pl-12 pr-4 outline-none ring-lime focus:ring-2" /></div><TrackRow tracks={filtered} current={current} onPlay={play} onFavorite={favorite} empty="Nothing here yet. Try a different search." /></section>}
+        {view === "search" && <section className="rise pt-10"><PageTitle title="Find a feeling" detail="Search your local collection or Internet Archive" /><div className="relative mb-3 mt-8"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/45" size={20} /><input onKeyDown={(e) => { if (e.key === "Enter") void searchOnline(); }} autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tracks, artists, albums" className="w-full rounded-2xl border border-ink/15 bg-white/60 py-4 pl-12 pr-4 outline-none ring-lime focus:ring-2" /></div><button onClick={() => void searchOnline()} disabled={onlineLoading || !query.trim()} className="mb-8 rounded-full bg-ink px-4 py-2 text-sm font-bold text-paper disabled:opacity-40">{onlineLoading ? "Searching..." : "Search online"}</button><TrackRow tracks={filtered} current={current} onPlay={play} onFavorite={favorite} empty="Nothing here yet. Try a different search." />{onlineError && <p className="mt-6 text-sm text-ember">{onlineError}</p>}{onlineTracks.length > 0 && <div className="mt-12 border-t border-ink/15 pt-5"><div className="mb-3 flex items-center justify-between"><h2 className="font-display text-2xl font-bold">Internet Archive</h2><span className="text-xs text-ink/45">Open-license sources vary</span></div><TrackRow tracks={onlineTracks} current={current} onPlay={play} onFavorite={favorite} /></div>}</section>}
         {view === "playlists" && <section className="rise pt-10"><PageTitle title="Playlists" detail="Small worlds for every mood" /><div className="mt-8 flex gap-2"><input value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="New playlist name" className="min-w-0 flex-1 rounded-xl border border-ink/15 bg-white/60 px-4 py-3 outline-none focus:ring-2 focus:ring-lime" /><button onClick={addPlaylist} className="rounded-xl bg-ink px-4 text-paper"><Plus size={20} /></button></div><div className="mt-7 divide-y divide-ink/10">{playlists.length ? playlists.map((playlist) => <div key={playlist.id} className="flex items-center justify-between py-4"><div><p className="font-semibold">{playlist.name}</p><p className="text-sm text-ink/50">{playlist.trackIds.length} tracks</p></div><MoreHorizontal size={20} className="text-ink/40" /></div>) : <p className="py-14 text-center text-ink/50">Create a playlist when a moment deserves its own place.</p>}</div></section>}
       </div>
       <audio ref={audioRef} onEnded={() => setPlaying(false)} onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} />

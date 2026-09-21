@@ -15,6 +15,7 @@ Copy `.env.example` to `.env.local` to enable Supabase auth/data wiring. Without
 
 - Import audio from the Library tab; files never leave the device.
 - The legal-provider interface in `lib/providers.ts` is intentionally provider-agnostic.
+- Search includes an Internet Archive adapter at `/api/music/search`; results retain source and license links, and only provider-exposed audio files are playable.
 - On iPhone, use Safari’s Share → Add to Home Screen flow for the installed PWA experience.
 - Demo audio assets are not included; imported local files provide playback URLs for a production audio element integration.
 
