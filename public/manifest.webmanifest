@@ -1,0 +1,10 @@
+{
+  "name": "PYLA MUSIC",
+  "short_name": "PYLA",
+  "description": "Your legal, personal music library.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101416",
+  "theme_color": "#101416",
+  "icons": []
+}

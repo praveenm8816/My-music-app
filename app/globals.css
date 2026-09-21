@@ -1,0 +1,16 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --font-geist: "DM Sans"; --font-space: "Space Grotesk"; }
+* { box-sizing: border-box; }
+html { background: #f5f4ef; }
+body { margin: 0; background: #f5f4ef; color: #101416; font-family: var(--font-geist), Arial, sans-serif; }
+button, input { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+.safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+.grain { position: relative; }
+.grain::after { content: ""; pointer-events: none; position: absolute; inset: 0; opacity: .06; mix-blend-mode: multiply; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); }
+.range-lime { accent-color: #d8ff3e; }
+@media (prefers-reduced-motion: no-preference) { .rise { animation: rise .5s cubic-bezier(.22,1,.36,1) both; } @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } }
