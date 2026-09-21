@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -19,7 +19,7 @@ function r2Client() {
   return new S3Client({ region: "auto", endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY } });
 }
 
-async function putWithRetry(client: S3Client, command: PutObjectCommand, label: string) {
+async function putWithRetry(client: S3Client, command: PutObjectCommand | DeleteObjectCommand, label: string) {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -76,9 +76,17 @@ async function main() {
       hashes.add(digest);
       const key = `${process.env.R2_KEY_PREFIX ?? "naasongs/telugu-folk"}/${song.id}-${basename(new URL(song.sourceAudioUrl).pathname)}`;
       await putWithRetry(client!, new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: contentType ?? "audio/mpeg", Metadata: { sourcepage: song.sourcePageUrl, sourceaudio: song.sourceAudioUrl, attribution: song.attribution } }), song.title);
+      try {
+        const { error } = await supabase!.from("music_catalog").upsert({ id: song.id, title: song.title, artist: song.artist, year: song.year ?? null, source_page_url: song.sourcePageUrl, source_audio_url: song.sourceAudioUrl, attribution: song.attribution, r2_key: key, sha256: digest }, { onConflict: "source_audio_url" });
+        if (error) {
+          if (error.code === "42501") throw new Error("Supabase rejected the catalog write with RLS (42501). Apply the migration and use the Supabase service-role key, not the anon key.");
+          throw new Error(`Supabase catalog write failed: ${error.message}`);
+        }
+      } catch (error) {
+        try { await putWithRetry(client!, new DeleteObjectCommand({ Bucket: bucket, Key: key }), `${song.title} cleanup`); } catch {}
+        throw error;
+      }
       catalog.push({ ...song, r2Key: key, sha256: digest, status: "uploaded" });
-      const { error } = await supabase!.from("music_catalog").upsert({ id: song.id, title: song.title, artist: song.artist, year: song.year ?? null, source_page_url: song.sourcePageUrl, source_audio_url: song.sourceAudioUrl, attribution: song.attribution, r2_key: key, sha256: digest }, { onConflict: "source_audio_url" });
-      if (error) throw error;
     } else {
       const link = await checkAudioLink(song.sourceAudioUrl);
       catalog.push({ ...song, status: link.ok ? "audio-link-ok" : "audio-link-failed", linkStatus: link.status, linkContentType: link.contentType });
