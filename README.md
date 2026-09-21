@@ -18,6 +18,7 @@ Copy `.env.example` to `.env.local` to enable Supabase auth/data wiring. Without
 - Search includes an Internet Archive adapter at `/api/music/search`; results retain source and license links, and only provider-exposed audio files are playable.
 - On iPhone, use Safari’s Share → Add to Home Screen flow for the installed PWA experience.
 - Demo audio assets are not included; imported local files provide playback URLs for a production audio element integration.
+- Authorized NaaSongs importer: `npm run import:naasongs:dry` parses the Telugu folk page, caps work at five songs, rate-limits requests, validates audio, deduplicates by SHA-256, preserves attribution, and writes `data/naasongs-catalog.json`. For a live R2 import, set the R2 variables in `.env.local` and run `npm run import:naasongs`; use `IMPORT_FIXTURE=fixtures/naasongs-telugu-folk.html npm run import:naasongs:dry` for fixture-only validation.
 
 ## Checks
 
